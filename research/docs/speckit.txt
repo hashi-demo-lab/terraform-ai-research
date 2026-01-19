@@ -1,0 +1,2 @@
+https://github.com/github/spec-kit
+https://developer.microsoft.com/blog/spec-driven-development-spec-kit
