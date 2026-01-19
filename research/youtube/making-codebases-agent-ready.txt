@@ -1,0 +1,17 @@
+link: https://www.youtube.com/watch?v=ShuJ_CN6zr4
+summary:
+If you want to move toward the autonomous engineering flow Eno describes, here are the technical pillars you need to implement:
+
+1. Rigorous Automated Validation
+To enable an agent to work autonomously, your CI/CD pipeline must go beyond basic unit tests. You need:Highly Opinionated Linters: The rules must be so strict that the agent is forced to match the exact code style of your most senior engineers.Slop Tests: Specific tests designed to catch hallucinated logic or inefficient patterns common in AI-generated code.Visual/Front-end Regression: Using tools like Browserbase or computer-use agents to validate that UI changes don't break the user experience.
+
+2. Specification-Driven Development
+Traditional coding is: Understand -> Design -> Code -> Test. Agentic coding is: Define Constraints: Write the validation tests before the agent starts.Generate Solutions: The agent iterates until the tests pass.Verify & Iterate: Use "Plan Mode" or "Spec Mode" (like in Factory’s Droids) to ensure the logic aligns with intent before the first line of code is committed.
+
+3. The agents.md Standard
+the agents.md as an open standard. Technically, this is a file placed in the root of a repository that serves as a "handbook" for the AI.What it contains: Architecture overviews, specific "gotchas" in the codebase, instructions on how to run tests, and paths to important documentation.Why it matters: It provides the "contextual pointer" that prevents the agent from getting lost in a large-scale repository.
+
+4. High-Integrity DocumentationOpenAPI Specs: Every API must be documented with a machine-readable spec.Type Safety: Moving toward strongly typed languages (TypeScript, Go, Rust) provides "free" validation that agents can use to self-correct during the coding process.
+
+5. Remediation Workflows
+Don't just use agents to write features. Use them to harden the environment:Task: "Identify every function in this repo with 0% test coverage and generate a basic unit test for it."Task: "Review our linter warnings and propose a new set of rules that would prevent these specific bugs in the future."

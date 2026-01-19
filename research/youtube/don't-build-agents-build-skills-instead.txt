@@ -1,0 +1,46 @@
+link: https://www.youtube.com/watch?v=CEvIs9y1uog
+summary:
+Building an Agent Skill is less about "coding" an agent and more about structuring a filesystem that Claude can navigate. Technically, it is a progressive disclosure architecture designed to minimize token overhead while maximizing procedural reliability.Here is the technical breakdown of how Skills work under the hood.
+
+📂 1. The Skill Anatomy (File Structure)A Skill is essentially a directory. The only hard requirement is a SKILL.md file, but a mature technical skill typically follows this structure:Bashmy-technical-skill/
+├── SKILL.md             # Required: Entry point, metadata, and high-level logic
+├── guidelines/          # Optional: Detailed markdown files (e.g., style-guide.md)
+├── reference/           # Optional: Factual data (e.g., api-spec.json, schema.sql)
+└── scripts/             # Optional: Deterministic tools (e.g., validator.py, formatter.sh)
+
+🧠 2. The Three-Tier Loading Architecture
+The most critical technical feature is Progressive Disclosure. This prevents "context bloat" by only loading what is needed at specific execution phases.
+
+Tier,Component,Token Cost,When it Loads
+Tier 1,YAML Metadata,~100 tokens,Startup: Only the name and description are injected into the system prompt.
+Tier 2,Core Instructions,~1k–5k tokens,Triggered: The full body of SKILL.md is read via bash only when Claude decides to use the skill.
+Tier 3,Resources & Code,Unlimited,Execution: Claude calls cat or python on specific files/scripts inside the folder as needed.
+
+🛠️ 3. Technical Requirements & Runtime
+To use Skills, the environment must support specific capabilities and beta headers:
+
+Environment: Skills require a runtime with a filesystem and a bash/python execution tool.
+Sandbox Constraints: * No Network Access: Scripts cannot call external APIs.Ephemeral Filesystem: Data doesn't persist between separate sessions (unless saved to a project directory).Timeout: Scripts typically have a 30-second execution limit.
+API Beta Headers: If you are implementing this via the Anthropic API, you must include:code-execution-2025-08-25skills-2025-10-02
+
+🔄 4. Skills vs. MCP (The Technical Difference)
+It is common to confuse Skills with the Model Context Protocol (MCP), but they serve different technical roles:
+
+MCP (Connectivity): Acts like a driver. It connects Claude to a live database or a remote API (e.g., Google Drive, Slack). It is functional and external.
+Skills (Expertise): Acts like a manual or script. It tells Claude how to use those connections or how to perform a multi-step workflow. It is procedural and local to the agent's filesystem.
+Technical Pattern: Developers are now using Skills to orchestrate MCP tools. A "Financial Auditor" Skill might contain the logic for when to call a "QuickBooks MCP" tool and how to format the resulting data into a specific Excel template.
+
+📝 5. The SKILL.md FormatThe SKILL.md file must start with specific YAML frontmatter so the agent can "discover" it:Markdown---
+name: doc-style-validator
+description: Use this skill to check if Markdown documents follow the company's internal branding and technical writing standards.
+---
+
+# Document Style Validator
+When this skill is active, you should:
+1. Read the rules in `guidelines/branding.md`.
+2. Run the `scripts/lint_check.py` to identify common errors.
+3. Provide a summary of violations and suggested fixes.
+
+## Examples
+- "Check if this README matches our style guide."
+- "Validate the formatting of the attached report."
