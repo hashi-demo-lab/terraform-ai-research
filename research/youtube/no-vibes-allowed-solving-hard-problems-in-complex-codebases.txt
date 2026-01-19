@@ -1,0 +1,48 @@
+link: https://www.youtube.com/watch?v=rmvDxxNubIg
+summary:
+💡 Key Technical Takeaways
+1. The "Dumb Zone" & Context Management
+The 40% Rule: LLM performance is not linear across the context window. Dex identifies a "Dumb Zone" that begins around 40% of the total token capacity (e.g., ~60k-70k tokens for a 168k window).
+
+Performance Decay: Operating deep in the context window leads to poor tool calling, hallucinations, and "codebase churn" (reworking previous slop).
+
+Statelessness & Trajectory: LLMs are stateless; they only know what is currently in the window. If the window contains a history of the human yelling at the AI for mistakes, the "trajectory" of the conversation likely leads to more mistakes.
+
+2. Intentional Compaction (The RPI Loop)
+To stay in the "Smart Zone," engineers must use Frequent Intentional Compaction—the process of taking large context dumps and compressing them into succinct Markdown summaries.
+
+The workflow follows three distinct, compacted stages:
+
+Research: Use sub-agents to "fork" new context windows to read files and understand code flow. The sub-agent returns only a succinct summary of relevant file paths and logic to the parent agent.
+
+Plan: Compacting "intent." A plan should be a Markdown file with explicit steps and actual code snippets of proposed changes. This allows for human verification before execution.
+
+Implement: The agent executes the plan using the compacted research and plan as its only context, ensuring high-leverage tokens are prioritized.
+
+3. Progressive Disclosure of Context
+Repo Onboarding: Putting a massive CONTEXT.md in a root directory is inefficient for large (5M+ line) monorepos because it fills the context window before work begins.
+
+Sharding Context: Instead, "shard" documentation down the directory tree. Use a root file for global context and sub-directory files for local logic.
+
+On-Demand Truth: Since documentation often lies, use agents to generate "On-Demand Compressed Context" by taking vertical slices of the actual source code truth at the moment the task starts.
+
+4. Mental Alignment & Verification
+Don't Outsource Thinking: AI amplifies the quality of the engineer's logic. If the "Research" is wrong, the "Implementation" is guaranteed to be "slop."
+
+Plans as Code Review: In an AI-heavy workflow, human code review shifts from reading 1,000 lines of code to reviewing the Plan file. If the plan is verified by a human, the implementation becomes a "low-intelligence" commodity task for the AI.
+
+⚙️ Technical Definitions
+Term,Technical Meaning
+Brownfield Codebase,"An existing, often messy, legacy codebase (e.g., 10-year-old Java) where AI typically struggles due to high ""noise"" and technical debt."
+Context Engineering,The practice of optimizing what tokens enter the window to maximize correctness and minimize size.
+Trajectory Optimization,"Starting a fresh context window once an agent gets stuck to remove the ""history of failure"" from the prompt."
+Harness Engineering,Integrating specific codebase customisations and hooks into AI tools like Claude Code or Cursor.
+
+🛠️ Implementation Strategy: The "RPI" Prompt System
+Dex suggests that teams stop focusing on "better prompts" and start focusing on Workflows.
+
+Stop: Long-running chat sessions that fill the buffer with trial-and-error logs.
+
+Start: Moving human focus to the Research and Plan stages.
+
+Execute: Treat the final code generation as "assembly"—the byproduct of a well-engineered plan.
