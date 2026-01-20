@@ -1,1 +1,2 @@
 https://support.claude.com/en/articles/12512176-what-are-skills
+https://agentskills.io/integrate-skills
