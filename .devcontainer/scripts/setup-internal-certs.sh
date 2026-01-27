@@ -17,7 +17,8 @@ if [ -z "$INTERNAL_HOST" ]; then
     exit 1
 fi
 
-CERT_PATH="/usr/local/share/ca-certificates/${CERT_NAME}.crt"
+CERT_DIR="/usr/local/share/ca-certificates"
+CERT_PATH="${CERT_DIR}/${CERT_NAME}.crt"
 
 echo "=== Internal CA Certificate Setup ==="
 echo "Host: $INTERNAL_HOST"
@@ -37,65 +38,122 @@ fi
 
 # Step 2: Extract and install certificate chain
 echo "[2/4] Installing certificate chain..."
-if [ -f "$CERT_PATH" ]; then
-    echo "  ✓ Certificate already exists at $CERT_PATH"
+
+# Check if we already have certificates installed
+EXISTING_CERTS=$(find "$CERT_DIR" -name "${CERT_NAME}*.crt" 2>/dev/null | wc -l)
+if [ "$EXISTING_CERTS" -gt 0 ]; then
+    echo "  ✓ Certificates already exist ($EXISTING_CERTS file(s))"
 else
     # Try to extract from server
     echo "  Extracting certificate chain from $INTERNAL_HOST:443..."
-    if openssl s_client -connect "${INTERNAL_HOST}:443" -showcerts </dev/null 2>/dev/null \
-        | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' \
-        | sudo tee "$CERT_PATH" > /dev/null; then
 
-        CERT_COUNT=$(grep -c "BEGIN CERTIFICATE" "$CERT_PATH" 2>/dev/null || echo "0")
-        if [ "$CERT_COUNT" -gt 0 ]; then
-            echo "  ✓ Extracted $CERT_COUNT certificate(s)"
-        else
-            echo "  ✗ Failed to extract certificates"
-            echo "    Try placing the certificate chain manually at: $CERT_PATH"
-            exit 1
-        fi
-    else
+    # Create temp file for the full chain
+    TEMP_CHAIN=$(mktemp)
+    trap "rm -f $TEMP_CHAIN" EXIT
+
+    if ! openssl s_client -connect "${INTERNAL_HOST}:443" -showcerts </dev/null 2>/dev/null \
+        | awk '/BEGIN CERTIFICATE/,/END CERTIFICATE/{ print }' > "$TEMP_CHAIN"; then
         echo "  ✗ Could not connect to $INTERNAL_HOST:443"
         echo "    Ensure the host is reachable and try again"
         exit 1
     fi
+
+    CERT_COUNT=$(grep -c "BEGIN CERTIFICATE" "$TEMP_CHAIN" 2>/dev/null || echo "0")
+    if [ "$CERT_COUNT" -eq 0 ]; then
+        echo "  ✗ Failed to extract certificates"
+        echo "    Try placing the certificate chain manually at: $CERT_PATH"
+        exit 1
+    fi
+
+    echo "  ✓ Extracted $CERT_COUNT certificate(s)"
+
+    # Split certificates into individual files for update-ca-certificates
+    # This ensures each CA cert in the chain is properly added to the trust store
+    echo "  Splitting chain into individual certificates..."
+
+    CERT_NUM=0
+    CURRENT_CERT=""
+    while IFS= read -r line; do
+        CURRENT_CERT="${CURRENT_CERT}${line}"$'\n'
+        if [[ "$line" == *"END CERTIFICATE"* ]]; then
+            CERT_NUM=$((CERT_NUM + 1))
+            if [ "$CERT_NUM" -eq 1 ]; then
+                # First cert is usually the server cert, skip it - we only need CA certs
+                # But save the full chain for NODE_EXTRA_CA_CERTS
+                sudo cp "$TEMP_CHAIN" "$CERT_PATH"
+            else
+                # Install intermediate and root CA certs separately
+                INDIVIDUAL_CERT_PATH="${CERT_DIR}/${CERT_NAME}-ca${CERT_NUM}.crt"
+                echo "$CURRENT_CERT" | sudo tee "$INDIVIDUAL_CERT_PATH" > /dev/null
+                echo "    ✓ Saved CA certificate #$CERT_NUM"
+            fi
+            CURRENT_CERT=""
+        fi
+    done < "$TEMP_CHAIN"
+
+    echo "  ✓ Certificate chain installed"
 fi
 
 # Step 3: Update system CA certificates
 echo "[3/4] Updating system CA store..."
-RESULT=$(sudo update-ca-certificates 2>&1)
+RESULT=$(sudo update-ca-certificates --fresh 2>&1)
 ADDED=$(echo "$RESULT" | grep -oP '\d+(?= added)' || echo "0")
 echo "  ✓ CA store updated ($ADDED certificates added)"
 
 # Step 4: Verify certificate trust
 echo "[4/4] Verifying certificate trust..."
 
+VERIFY_SUCCESS=true
+
 # Test TLS handshake with curl (system CA)
 echo -n "  curl (system CA): "
-if curl -s --connect-timeout 5 "https://${INTERNAL_HOST}" -o /dev/null 2>/dev/null; then
+CURL_OUTPUT=$(curl -sv --connect-timeout 5 "https://${INTERNAL_HOST}" -o /dev/null 2>&1)
+if echo "$CURL_OUTPUT" | grep -q "SSL certificate verify ok"; then
     echo "✓ TLS handshake successful"
 else
+    VERIFY_SUCCESS=false
     echo "✗ TLS handshake failed"
-    echo "    Check certificate installation and network connectivity"
+    # Extract the specific error
+    ERROR_MSG=$(echo "$CURL_OUTPUT" | grep -E "(SSL certificate problem|unable to get|certificate verify failed)" | head -1)
+    if [ -n "$ERROR_MSG" ]; then
+        echo "    Error: $ERROR_MSG"
+    fi
+    echo "    Debug: curl -v https://${INTERNAL_HOST}"
 fi
 
 # Test with Node.js (custom CA)
 echo -n "  node (NODE_EXTRA_CA_CERTS): "
-if NODE_EXTRA_CA_CERTS="$CERT_PATH" node -e "
+NODE_OUTPUT=$(NODE_EXTRA_CA_CERTS="$CERT_PATH" node -e "
     fetch('https://${INTERNAL_HOST}')
-        .then(() => process.exit(0))
-        .catch(() => process.exit(1))
-" 2>/dev/null; then
+        .then(() => { console.log('OK'); process.exit(0); })
+        .catch((e) => { console.error(e.cause?.code || e.message); process.exit(1); })
+" 2>&1)
+if [ $? -eq 0 ]; then
     echo "✓ TLS handshake successful"
 else
+    VERIFY_SUCCESS=false
     echo "✗ TLS handshake failed"
-    echo "    Ensure NODE_EXTRA_CA_CERTS=$CERT_PATH is set"
+    echo "    Error: $NODE_OUTPUT"
 fi
 
 echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "Certificate installed at: $CERT_PATH"
+echo "Certificate chain installed at: $CERT_PATH"
+
+# List all installed cert files
+echo "Individual CA certificates:"
+find "$CERT_DIR" -name "${CERT_NAME}*.crt" -exec basename {} \; | sed 's/^/  /'
+
 echo ""
-echo "For Node.js applications, set:"
-echo "  export NODE_EXTRA_CA_CERTS=$CERT_PATH"
+if [ "$VERIFY_SUCCESS" = true ]; then
+    echo "✓ All verification checks passed"
+else
+    echo "⚠ Some verification checks failed - this may be expected if:"
+    echo "  - The server requires authentication"
+    echo "  - The endpoint returns non-200 status codes"
+    echo "  - Network policies block direct access"
+    echo ""
+    echo "To manually verify TLS trust:"
+    echo "  openssl s_client -connect ${INTERNAL_HOST}:443 -CApath /etc/ssl/certs"
+fi
