@@ -71,7 +71,7 @@
     "OTEL_LOGS_EXPORTER": "${localEnv:OTEL_LOGS_EXPORTER}",
     "OTEL_EXPORTER_OTLP_PROTOCOL": "${localEnv:OTEL_EXPORTER_OTLP_PROTOCOL}",
     "OTEL_EXPORTER_OTLP_ENDPOINT": "${localEnv:OTEL_EXPORTER_OTLP_ENDPOINT}",
-    "OTEL_EXPORTER_OTLP_CERTIFICATE": "${localEnv:OTEL_EXPORTER_OTLP_CERTIFICATE}",
+    "OTEL_EXPORTER_OTLP_CERTIFICATE": "/usr/local/share/ca-certificates/internal-ca-chain.crt",
     "NODE_EXTRA_CA_CERTS": "/usr/local/share/ca-certificates/internal-ca-chain.crt",
     "OTEL_METRIC_EXPORT_INTERVAL": "${localEnv:OTEL_METRIC_EXPORT_INTERVAL}",
     "OTEL_LOGS_EXPORT_INTERVAL": "${localEnv:OTEL_LOGS_EXPORT_INTERVAL}"
