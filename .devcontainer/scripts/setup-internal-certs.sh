@@ -81,10 +81,12 @@ else
                 # First cert is usually the server cert, skip it - we only need CA certs
                 # But save the full chain for NODE_EXTRA_CA_CERTS
                 sudo cp "$TEMP_CHAIN" "$CERT_PATH"
+                sudo chmod 644 "$CERT_PATH"
             else
                 # Install intermediate and root CA certs separately
                 INDIVIDUAL_CERT_PATH="${CERT_DIR}/${CERT_NAME}-ca${CERT_NUM}.crt"
                 echo "$CURRENT_CERT" | sudo tee "$INDIVIDUAL_CERT_PATH" > /dev/null
+                sudo chmod 644 "$INDIVIDUAL_CERT_PATH"
                 echo "    ✓ Saved CA certificate #$CERT_NUM"
             fi
             CURRENT_CERT=""
