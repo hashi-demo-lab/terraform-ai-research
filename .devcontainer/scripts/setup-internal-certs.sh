@@ -9,6 +9,9 @@ set -e
 INTERNAL_HOST="${INTERNAL_CA_HOST:-}"
 INTERNAL_IP="${INTERNAL_CA_IP:-}"
 CERT_NAME="${INTERNAL_CA_CERT_NAME:-internal-ca-chain}"
+# Additional hosts to add to /etc/hosts (colon-separated, like PATH)
+# These will all resolve to INTERNAL_CA_IP
+ADDITIONAL_HOSTS="${INTERNAL_CA_ADDITIONAL_HOSTS:-}"
 # ============================================================================
 
 if [ -z "$INTERNAL_HOST" ]; then
@@ -25,15 +28,27 @@ echo "Host: $INTERNAL_HOST"
 [ -n "$INTERNAL_IP" ] && echo "IP:   $INTERNAL_IP"
 echo ""
 
-# Step 1: Add hostname to /etc/hosts (if IP provided)
+# Step 1: Add hostnames to /etc/hosts (if IP provided)
 echo "[1/4] Configuring DNS resolution..."
 if [ -z "$INTERNAL_IP" ]; then
     echo "  - Skipped (no IP provided, using DNS)"
-elif grep -q "$INTERNAL_HOST" /etc/hosts 2>/dev/null; then
-    echo "  ✓ Host already in /etc/hosts"
 else
-    echo "$INTERNAL_IP $INTERNAL_HOST" | sudo tee -a /etc/hosts > /dev/null
-    echo "  ✓ Added $INTERNAL_HOST -> $INTERNAL_IP to /etc/hosts"
+    # Build list of all hosts to add (colon-separated)
+    ALL_HOSTS="$INTERNAL_HOST"
+    if [ -n "$ADDITIONAL_HOSTS" ]; then
+        ALL_HOSTS="$ALL_HOSTS:$ADDITIONAL_HOSTS"
+    fi
+
+    # Split on colons
+    IFS=':' read -ra HOST_ARRAY <<< "$ALL_HOSTS"
+    for HOST in "${HOST_ARRAY[@]}"; do
+        if grep -q "$HOST" /etc/hosts 2>/dev/null; then
+            echo "  ✓ $HOST already in /etc/hosts"
+        else
+            echo "$INTERNAL_IP $HOST" | sudo tee -a /etc/hosts > /dev/null
+            echo "  ✓ Added $HOST -> $INTERNAL_IP to /etc/hosts"
+        fi
+    done
 fi
 
 # Step 2: Extract and install certificate chain
@@ -107,9 +122,15 @@ echo "[4/4] Verifying certificate trust..."
 
 VERIFY_SUCCESS=true
 
+# Use first additional host for verification if available (subdomains usually have valid certs)
+# Fall back to INTERNAL_HOST if no additional hosts configured
+VERIFY_HOST="${ADDITIONAL_HOSTS%%:*}"  # Get first colon-separated value
+VERIFY_HOST="${VERIFY_HOST:-$INTERNAL_HOST}"
+echo "  Testing against: $VERIFY_HOST"
+
 # Test TLS handshake with curl (system CA)
 echo -n "  curl (system CA): "
-CURL_OUTPUT=$(curl -sv --connect-timeout 5 "https://${INTERNAL_HOST}" -o /dev/null 2>&1) || true
+CURL_OUTPUT=$(curl -sv --connect-timeout 5 "https://${VERIFY_HOST}" -o /dev/null 2>&1) || true
 if echo "$CURL_OUTPUT" | grep -q "SSL certificate verify ok"; then
     echo "✓ TLS handshake successful"
 else
@@ -120,14 +141,14 @@ else
     if [ -n "$ERROR_MSG" ]; then
         echo "    Error: $ERROR_MSG"
     fi
-    echo "    Debug: curl -v https://${INTERNAL_HOST}"
+    echo "    Debug: curl -v https://${VERIFY_HOST}"
 fi
 
 # Test with Node.js (custom CA)
 echo -n "  node (NODE_EXTRA_CA_CERTS): "
 NODE_EXIT_CODE=0
 NODE_OUTPUT=$(NODE_EXTRA_CA_CERTS="$CERT_PATH" node -e "
-    fetch('https://${INTERNAL_HOST}')
+    fetch('https://${VERIFY_HOST}')
         .then(() => { console.log('OK'); process.exit(0); })
         .catch((e) => { console.error(e.cause?.code || e.message); process.exit(1); })
 " 2>&1) || NODE_EXIT_CODE=$?
@@ -158,5 +179,5 @@ else
     echo "  - Network policies block direct access"
     echo ""
     echo "To manually verify TLS trust:"
-    echo "  openssl s_client -connect ${INTERNAL_HOST}:443 -CApath /etc/ssl/certs"
+    echo "  openssl s_client -connect ${VERIFY_HOST}:443 -CApath /etc/ssl/certs"
 fi
