@@ -1,0 +1,41 @@
+
+devcontainer repo (https://github.ibm.com/AdvArch/ai-iac-agent-devcontainers)
+
+
+
+AGENT KIT
+- consumer-tf-workflow 
+    - (NEEDS TO BE SPLIT TO A PLAN/IMPLEMENT MD and RENAMED)
+- tf-module-spec-plan-workflow
+- tf-module-spec-implement-workflow
+
+
+- add (shared) prompts into the docker process
+    
+
+AGENTS.md
+Constitution.md
+Promtps
+
+Skills
+- source skills from here: https://github.com/hashicorp/terraform-agent-kit
+
+Subagents 
+- source subagents (terraform) from here: https://github.com/hashicorp/terraform-agent-kit
+
+
+
+
+Other things to Investigate
+RLM
+Tools searching 
+
+
+follow up actions late:
+
+Constituion: rules to follow
+Agent: information to know all the time:
+Skills: domain specific knowledge
+
+create lint rule for Version constraints
+lint rule for **No public access to modules (and sentinel policy)
