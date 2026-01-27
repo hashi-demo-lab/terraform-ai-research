@@ -109,7 +109,7 @@ VERIFY_SUCCESS=true
 
 # Test TLS handshake with curl (system CA)
 echo -n "  curl (system CA): "
-CURL_OUTPUT=$(curl -sv --connect-timeout 5 "https://${INTERNAL_HOST}" -o /dev/null 2>&1)
+CURL_OUTPUT=$(curl -sv --connect-timeout 5 "https://${INTERNAL_HOST}" -o /dev/null 2>&1) || true
 if echo "$CURL_OUTPUT" | grep -q "SSL certificate verify ok"; then
     echo "✓ TLS handshake successful"
 else
@@ -125,12 +125,13 @@ fi
 
 # Test with Node.js (custom CA)
 echo -n "  node (NODE_EXTRA_CA_CERTS): "
+NODE_EXIT_CODE=0
 NODE_OUTPUT=$(NODE_EXTRA_CA_CERTS="$CERT_PATH" node -e "
     fetch('https://${INTERNAL_HOST}')
         .then(() => { console.log('OK'); process.exit(0); })
         .catch((e) => { console.error(e.cause?.code || e.message); process.exit(1); })
-" 2>&1)
-if [ $? -eq 0 ]; then
+" 2>&1) || NODE_EXIT_CODE=$?
+if [ $NODE_EXIT_CODE -eq 0 ]; then
     echo "✓ TLS handshake successful"
 else
     VERIFY_SUCCESS=false
