@@ -24,4 +24,13 @@ cat > ~/.terraform.d/credentials.tfrc.json << EOF
 EOF
 echo "Terraform credentials configured"
 
+# Setup internal CA certificates if configured
+if [ -n "${INTERNAL_CA_HOST:-}" ]; then
+    echo ""
+    SCRIPT_DIR="$(dirname "$0")"
+    "${SCRIPT_DIR}/../../scripts/setup-internal-certs.sh"
+else
+    echo "Skipping internal CA setup (INTERNAL_CA_HOST not set)"
+fi
+
 echo "=== Post-Create Setup Complete ==="

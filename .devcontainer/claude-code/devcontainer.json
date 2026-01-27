@@ -61,7 +61,19 @@
     "VAULT_RADAR_LICENSE": "${localEnv:VAULT_RADAR_LICENSE:}",
     "CLAUDE_CODE_AGENT_SWARMS": "true",
     "CLAUDE_CODE_ENABLE_TASKS": "true",
-    "CLAUDE_CODE_TEAM_NAME": "terraform_workflow_testing"
+    "CLAUDE_CODE_TEAM_NAME": "terraform_workflow_testing",
+    "INTERNAL_CA_HOST": "${localEnv:INTERNAL_CA_HOST}",
+    "INTERNAL_CA_IP": "${localEnv:INTERNAL_CA_IP}",
+    "INTERNAL_CA_CERT_NAME": "${localEnv:INTERNAL_CA_CERT_NAME}",
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "${localEnv:CLAUDE_CODE_ENABLE_TELEMETRY}",
+    "OTEL_METRICS_EXPORTER": "${localEnv:OTEL_METRICS_EXPORTER}",
+    "OTEL_LOGS_EXPORTER": "${localEnv:OTEL_LOGS_EXPORTER}",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "${localEnv:OTEL_EXPORTER_OTLP_PROTOCOL}",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "${localEnv:OTEL_EXPORTER_OTLP_ENDPOINT}",
+    "OTEL_EXPORTER_OTLP_CERTIFICATE": "${localEnv:OTEL_EXPORTER_OTLP_CERTIFICATE}",
+    "NODE_EXTRA_CA_CERTS": "${localEnv:NODE_EXTRA_CA_CERTS}",
+    "OTEL_METRIC_EXPORT_INTERVAL": "${localEnv:OTEL_METRIC_EXPORT_INTERVAL}",
+    "OTEL_LOGS_EXPORT_INTERVAL": "${localEnv:OTEL_LOGS_EXPORT_INTERVAL}"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace"
